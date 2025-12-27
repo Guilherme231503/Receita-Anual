@@ -51,6 +51,11 @@ button {
 button:hover {
     background: #0041a8;
 }
+    progress {
+    height: 20px;
+    border-radius: 8px;
+    overflow: hidden;
+    }
 </style>
 </head>
 <body>
@@ -60,7 +65,7 @@ button:hover {
 
 <label>Receita Anual (TZ):</label>
 <input type="number" id="valor" placeholder="Ex: 8700000000">
-
+<progress id="barraProgresso" value="0" max="100" style="width:100%; display:none; margin-bottom:20px;"></progress>
 <button onclick="gerarPDF()">Gerar PDF Profissional</button>
 </div>
 
@@ -72,19 +77,24 @@ function gerarID() {
 function formatTZ(n) {
     return "$TZ " + n.toLocaleString("pt-BR");
 }
-
 async function gerarPDF() {
+    const barra = document.getElementById("barraProgresso");
+    barra.style.display = "block";
+    barra.value = 0;
+
     const { jsPDF } = window.jspdf;
     const valor = parseFloat(document.getElementById("valor").value);
-
     if(!valor || valor <=0){
         alert("Digite um valor válido.");
+        barra.style.display = "none";
         return;
     }
 
+    barra.value = 10; // etapa inicial
+
     const dataHoje = new Date().toLocaleDateString("pt-BR");
     const transacaoID = gerarID();
-    
+
     // Divisões
     const distribuicao = [
         {item:"Investimentos", valor:valor*0.25},
@@ -96,9 +106,9 @@ async function gerarPDF() {
         {item:"Custos Operacionais", valor:valor*0.03}
     ];
 
-    const pdf = new jsPDF();
+    barra.value = 30; // tabela e texto
 
-    // Cabeçalho
+    const pdf = new jsPDF();
     pdf.setFontSize(20);
     pdf.setTextColor(10,10,60);
     pdf.text("SK Agency Corps.", 20, 20);
@@ -107,14 +117,13 @@ async function gerarPDF() {
     pdf.text("CNPJ: 12.345.678/0001-99", 20, 28);
     pdf.text("Data: " + dataHoje, 20, 34);
     pdf.text("ID da Transação: " + transacaoID, 20, 40);
-    
-    // Receita Total
     pdf.setFontSize(14);
     pdf.text("Receita Total:", 20, 55);
     pdf.setFontSize(12);
     pdf.text(formatTZ(valor), 20, 62);
 
-    // Tabela
+    barra.value = 50; // tabela
+
     const tableData = distribuicao.map(d => [d.item, formatTZ(d.valor)]);
     pdf.autoTable({
         head:[["Categoria","Valor"]],
@@ -124,7 +133,9 @@ async function gerarPDF() {
         headStyles:{fillColor:[0,87,216],textColor:255}
     });
 
-    // Gráfico em canvas temporário
+    barra.value = 70; // gráfico
+
+    // Gráfico
     const canvas = document.createElement("canvas");
     canvas.width = 300;
     canvas.height = 200;
@@ -142,27 +153,32 @@ async function gerarPDF() {
             }]
         },
         options:{
-            plugins:{
-                legend:{position:"right",labels:{font:{size:8}}}
-            }
+            animation: {
+                duration: 1000, // 1s de animação
+                onProgress: (anim) => {
+                    barra.value = 70 + anim.currentStep/anim.numSteps * 20;
+                },
+                onComplete: () => {
+                    barra.value = 90;
+                }
+            },
+            plugins:{legend:{position:"right",labels:{font:{size:8}}}}
         }
     });
 
-    // Espera o gráfico renderizar
-// Espera o gráfico finalizar antes de gerar imagem
-await new Promise(resolve => {
-    chart.options.animation = {
-        onComplete: () => resolve()
-    };
-});
+    // espera o gráfico renderizar
+    await new Promise(resolve => {
+        chart.options.animation.onComplete = resolve;
+    });
 
     const imgData = canvas.toDataURL("image/png");
     pdf.addImage(imgData,'PNG',20,120,160,100);
 
-    // Aviso
-
+    barra.value = 100; // finalizado
     pdf.save("Relatorio_SK_Agency_Corps.pdf");
+    barra.style.display = "none"; // esconde barra
 }
+
 </script>
 
 </body>
