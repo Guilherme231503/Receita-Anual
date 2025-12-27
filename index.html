@@ -149,7 +149,12 @@ async function gerarPDF() {
     });
 
     // Espera o gráfico renderizar
-    await new Promise(r=>setTimeout(r,500));
+// Espera o gráfico finalizar antes de gerar imagem
+await new Promise(resolve => {
+    chart.options.animation = {
+        onComplete: () => resolve()
+    };
+});
 
     const imgData = canvas.toDataURL("image/png");
     pdf.addImage(imgData,'PNG',20,120,160,100);
